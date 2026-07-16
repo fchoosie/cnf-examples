@@ -36,31 +36,30 @@ Single L2 VNI stretched across two sites. Both PCs live in the **same** IP subne
 ```
                           iBGP  AS 65100  (L2VPN/EVPN + IPv4 unicast)
                        advertise-all-vni  /  no ebgp-requires-policy
-        ┌───────────────────────────────────────────────────────────────┐
-        │                       UNDERLAY  10.0.1.0/31                     │
+        ┌─────────────────────────────────────────────────────────────────────┐
+        │                       UNDERLAY  10.0.1.0/31                         │
+        │                                                                     │
+┌───────┴────────────────────┐                         ┌──────────────────────┴──────┐
+│         router1            │  eth1          eth1     │           router2           │
+│      (SONiC + VPP)         │◄───────────────────────►│        (SONiC + VPP)        │
+│   sonic-vpp-vs:...260225   │  Ethernet0  Ethernet0   │    sonic-vpp-vs:...260225   │
+│                            │ 10.0.1.1/31 10.0.1.0/31 │                             │ 
+│  router-id  10.0.1.1       │                         │      router-id  10.0.1.0    │
+│  VTEP       10.0.1.1       │                         │      VTEP       10.0.1.0    │
+│                            │                         │                             │
+│  VLAN 100 ── VNI 1000      │                         │      VLAN 100 ── VNI 1000   │
+│  member: Ethernet4         │                         │      member: Ethernet4      │
+└───────┬────────────────────┘                         └──────────────────┬──────────┘
+        │ eth2 / Ethernet4                              eth2 / Ethernet4  │
         │                                                                 │
-┌───────┴────────────────────┐                      ┌─────────────────────┴──────┐
-│         router1             │  eth1          eth1  │        router2             │
-│      (SONiC + VPP)          │◄────────────────────►│      (SONiC + VPP)         │
-│   sonic-vpp-vs:...260225    │  Ethernet0  Ethernet0│  sonic-vpp-vs:...260225    │
-│                             │ 10.0.1.1/31 10.0.1.0/31                    │      │
-│  router-id  10.0.1.1        │                      │  router-id  10.0.1.0       │
-│  VTEP       10.0.1.1        │                      │  VTEP       10.0.1.0       │
-│                             │                      │                            │
-│  VLAN 100 ── VNI 1000       │                      │  VLAN 100 ── VNI 1000      │
-│  member: Ethernet4          │                      │  member: Ethernet4         │
-└───────┬─────────────────────┘                      └────────────────────┬───────┘
-        │ eth2 / Ethernet4                            eth2 / Ethernet4     │
-        │                                                                  │
-        │ eth2                                                        eth2 │
-┌───────┴───────┐                                              ┌───────────┴──────┐
-│      PC1      │                                              │       PC2        │
-│ 168.95.10.2/16│                                              │  168.95.10.1/16  │
-│ aa:aa:aa:aa:  │                                              │  be:ef:be:ef:    │
-│      aa:aa    │                                              │       be:ef      │
-└───────────────┘                                              └──────────────────┘
-
-         └───────────────── same L2 domain / VNI 1000 ─────────────────┘
+        │ eth2                                                      eth2  │
+┌───────┴────────┐                                              ┌─────────┴────────┐
+│      PC1       │                                              │       PC2        │
+│ 168.95.10.2/16 │                                              │  168.95.10.1/16  │
+│ aa:aa:aa:aa:   │                                              │  be:ef:be:ef:    │
+│      aa:aa     │                                              │       be:ef      │
+└────────────────┘                                              └──────────────────┘
+         └───────────────── same L2 domain / VNI 1000 ────────────────────┘
                     VXLAN tunnel  10.0.1.1 ◄─── VNI 1000 ───► 10.0.1.0
                         (VPP-created; EVPN Type-2/3 signalled)
 ```
@@ -73,27 +72,27 @@ broadcast domain stretched across both sites; the two subnets do not talk to eac
 ```
                           iBGP  AS 65100  (L2VPN/EVPN + IPv4 unicast)
                               advertise-all-vni  (all VNIs)
-        ┌───────────────────────────────────────────────────────────────┐
-        │                       UNDERLAY  10.0.1.0/31                     │
-┌───────┴────────────────────┐                      ┌─────────────────────┴──────┐
-│         router1             │  eth1          eth1  │        router2             │
-│      (SONiC + VPP)          │◄────────────────────►│      (SONiC + VPP)         │
-│   sonic-vpp-vs:...260421    │  Ethernet0  Ethernet0│  sonic-vpp-vs:...260421    │
-│                             │ 10.0.1.1/31 10.0.1.0/31                    │      │
-│  router-id / VTEP 10.0.1.1  │                      │ router-id / VTEP 10.0.1.0  │
-│                             │                      │                            │
-│  VLAN 100 ─ VNI 1000 ─ Eth4 │                      │ VLAN 100 ─ VNI 1000 ─ Eth4 │
-│  VLAN 200 ─ VNI 2000 ─ Eth8 │                      │ VLAN 200 ─ VNI 2000 ─ Eth8 │
-└──┬──────────────────┬───────┘                      └──┬──────────────────┬───────┘
-   │eth2/Eth4         │eth3/Eth8                   eth2/Eth4          eth3/Eth8│
-   │                  │                                │                      │
-   │eth2              │eth2                        eth2│                  eth2│
-┌──┴──────────┐  ┌────┴────────┐              ┌────────┴────┐        ┌─────────┴───┐
-│    PC1      │  │    PC3      │              │    PC2      │        │    PC4      │
-│10.100.1.1/24│  │10.200.1.1/24│              │10.100.1.2/24│        │10.200.1.2/24│
-│aa:aa:aa:aa: │  │bb:bb:bb:bb: │              │aa:aa:aa:aa: │        │bb:bb:bb:bb: │
-│      aa:01  │  │      bb:03  │              │      aa:02  │        │      bb:04  │
-└─────────────┘  └─────────────┘              └─────────────┘        └─────────────┘
+        ┌─────────────────────────────────────────────────────────────────────┐
+        │                       UNDERLAY  10.0.1.0/31                         │
+┌───────┴─────────────────────┐                         ┌─────────────────────┴──────┐
+│         router1             │  eth1             eth1  │        router2             │
+│      (SONiC + VPP)          │◄──────────────────────► │      (SONiC + VPP)         │
+│   sonic-vpp-vs:...260421    │  Ethernet0  Ethernet0   │  sonic-vpp-vs:...260421    │
+│                             │ 10.0.1.1/31 10.0.1.0/31 │                            │
+│  router-id / VTEP 10.0.1.1  │                         │ router-id / VTEP 10.0.1.0  │
+│                             │                         │                            │
+│  VLAN 100 ─ VNI 1000 ─ Eth4 │                         │ VLAN 100 ─ VNI 1000 ─ Eth4 │
+│  VLAN 200 ─ VNI 2000 ─ Eth8 │                         │ VLAN 200 ─ VNI 2000 ─ Eth8 │
+└──┬──────────────────┬───────┘                         └──┬─────────────────┬───────┘
+   │eth2/Eth4         │eth3/Eth8                           │eth2/Eth4        │eth3/Eth8
+   │                  │                                    │                 │
+   │eth2              │eth2                                │eth2             │eth2
+┌──┴──────────┐  ┌────┴────────┐                       ┌───┴─────────┐ ┌─────┴───────┐
+│    PC1      │  │    PC3      │                       │    PC2      │ │    PC4      │
+│10.100.1.1/24│  │10.200.1.1/24│                       │10.100.1.2/24│ │10.200.1.2/24│
+│aa:aa:aa:aa: │  │bb:bb:bb:bb: │                       │aa:aa:aa:aa: │ │bb:bb:bb:bb: │
+│      aa:01  │  │      bb:03  │                       │      aa:02  │ │      bb:04  │
+└─────────────┘  └─────────────┘                       └─────────────┘ └─────────────┘
 
   Tenant A:  VLAN 100 / VNI 1000 / 10.100.1.0/24   →  PC1 ⇄ PC2
   Tenant B:  VLAN 200 / VNI 2000 / 10.200.1.0/24   →  PC3 ⇄ PC4
